@@ -1,10 +1,7 @@
 from random import randint
-from typing import List, Optional, Tuple, TypeAlias
+from typing import List, Optional, Tuple
 
 import pygame
-
-PositionsType: TypeAlias = List[Tuple[int, int]]
-ColorType: TypeAlias = Tuple[int, int, int]
 
 # Константы для размеров поля и сетки:
 SCREEN_WIDTH, SCREEN_HEIGHT = 640, 480
@@ -31,7 +28,7 @@ APPLE_COLOR = (255, 0, 0)
 SNAKE_COLOR = (0, 255, 0)
 
 # Скорость движения змейки:
-SPEED = 15
+SPEED = 30
 
 
 DEFAULT_SNAKE_POSITION = (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
@@ -62,6 +59,9 @@ def handle_keys(game_object):
                 game_object.next_direction = LEFT
             elif event.key == pygame.K_RIGHT and game_object.direction != LEFT:
                 game_object.next_direction = RIGHT
+            elif event.key == pygame.K_ESCAPE:
+                pygame.quit()
+                raise SystemExit
 
 
 # Тут опишите все классы игры.
@@ -83,10 +83,10 @@ class Snake(GameObject):
     def __init__(
         self,
         length: int = 1,
-        positions: PositionsType = [DEFAULT_SNAKE_POSITION],
+        positions: List[Tuple[int, int]] = [DEFAULT_SNAKE_POSITION],
         direction: Tuple[int, int] = RIGHT,
         next_direction: Optional[Tuple[int, int]] = None,
-        body_color: ColorType = SNAKE_COLOR,
+        body_color: Tuple[int, int, int] = SNAKE_COLOR,
         position: Tuple[int, int] = DEFAULT_SNAKE_POSITION,
     ) -> None:
         self.length = length
@@ -169,29 +169,38 @@ class Apple(GameObject):
         pygame.draw.rect(screen, self.body_color, rect)
         pygame.draw.rect(screen, BORDER_COLOR, rect, 1)
 
-    def randomize_position(self) -> None:
+    def randomize_position(self, blocked_cells) -> None:
         """Метод для установки новой позиции яблока"""
-        self.position = (
-            randint(1, GRID_WIDTH - 1) * GRID_SIZE,
-            randint(1, GRID_HEIGHT - 1) * GRID_SIZE,
-        )
+        while self.position in blocked_cells:
+            self.position = (
+                randint(1, GRID_WIDTH - 1) * GRID_SIZE,
+                randint(1, GRID_HEIGHT - 1) * GRID_SIZE,
+            )
 
 
 def handle_walls_touch(game_object: GameObject) -> None:
     """Обработчик удара змейки об стену"""
     head = game_object.get_head_position()
 
-    if (
-        not -GRID_SIZE < head[0] < SCREEN_WIDTH
-        or not -GRID_SIZE < head[1] < SCREEN_HEIGHT
-    ):
-        game_object.reset()
+    if head[0] < 0:
+        game_object.positions[0] = (GRID_WIDTH * GRID_SIZE,
+                                    game_object.positions[0][1])
+    elif head[0] > SCREEN_WIDTH:
+        game_object.positions[0] = (1 * GRID_SIZE, game_object.positions[0][1])
+
+    if head[1] < 0:
+        game_object.positions[0] = (
+            game_object.positions[0][0],
+            GRID_HEIGHT * GRID_SIZE,
+        )
+    elif head[1] > SCREEN_HEIGHT:
+        game_object.positions[0] = (game_object.positions[0][0], 1 * GRID_SIZE)
 
 
 def handle_apple_eat(apple: Apple, snake: Snake) -> None:
     """Обработка поедания яблока"""
     if snake.get_head_position() == apple.position:
-        apple.randomize_position()
+        apple.randomize_position(snake.positions)
         snake.add_body_elem()
 
 
